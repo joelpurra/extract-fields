@@ -4,13 +4,15 @@ forms=( "html/my-first-form.html" "html/another-form.html" )
 
 cd $(dirname "${0}")
 
+mkdir -p output/
+
 for form in "${forms[@]}"
 do
    :
-	sed -n 's/.*name="\([^"]*\)".*/\1/p' $form | perl -ne '$H{$_}++ or print' | egrep -v 'description|viewport' > "$form.field-names.txt"
+	sed -n 's/.*name="\([^"]*\)".*/\1/p' $form | perl -ne '$H{$_}++ or print' | egrep -v 'description|viewport' > "output/$form.field-names.txt"
 done
 
-cat `find . -name '*.field-names.txt' -print` | perl -ne '0==$H{$_}-- or print' > `dirname ${forms[0]}`/shared-field-names.txt
+cat `find . -name '*.field-names.txt' -print` | perl -ne '0==$H{$_}-- or print' > output/`dirname ${forms[0]}`/shared-field-names.txt
 
 # Optional
 # Prepend the file with YAML front matter, to have
@@ -23,7 +25,7 @@ cat `find . -name '*.field-names.txt' -print` | perl -ne '0==$H{$_}-- or print' 
 #for form in "field-names-${forms[0]}" "field-names-${forms[1]}" "shared-field-names"
 #do
 #	:
-#	printf "%s\n" '0a' '---' '---' '.' 'wq' | ed -s $form.txt
+#	printf "%s\n" '0a' '---' '---' '.' 'wq' | ed -s output/$form.txt
 #done
 
 cd - > /dev/null
