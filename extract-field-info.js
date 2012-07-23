@@ -8,7 +8,11 @@ phantom.injectJs("lib/underscore-min.js");
         debugLevel: 4,
         scripts: ["lib/underscore-min.js", "lib/formfieldinfo.joelpurra.js"]
     },
-        options = defaults,
+        // TODO: use a deep clone function
+        options = {
+            debugLevel: defaults.debugLevel,
+            scripts: defaults.scripts.slice(0)
+        },
         priv = {},
         modes = {},
         debug = {
@@ -31,18 +35,10 @@ phantom.injectJs("lib/underscore-min.js");
     modes.fields = function(done, address) {
         priv.gotoUrl(address, function(error, page) {
 
-            var mergedGroups = page.evaluate(function() {
-                return JoelPurra.FormFieldInfo.getFields().mergeArrays().groups().toArray();
-            });
+            var results = priv.getPageResult(page),
+                simplifiedResults = priv.simplifyResults(results);
 
-            _.each(mergedGroups, function(value, index, list) {
-                var fieldGroup = _(value),
-                    first = fieldGroup.first();
-
-                console.log("\"" + first.name + "\"", fieldGroup.map(function(field) {
-                    return "\"" + field.value + "\""
-                }).toString());
-            });
+            priv.printResults(simplifiedResults);
 
             done();
         });
@@ -50,25 +46,107 @@ phantom.injectJs("lib/underscore-min.js");
 
     modes.shared = function(done) {
         var addresses = priv.toArray(arguments).slice(1),
-            address, i, isLast;
+            address, i, allResults = [],
+            resultsCount = 0,
+            resultsTarget = addresses.length;
 
         for (i = 0; i < addresses.length; i++) {
             address = addresses[i];
-            isLast = (i === (addresses.length - 1));
 
-            function gotoUrl(i, isLast, address) {
+            allResults.push({
+                address: address,
+                results: []
+            });
+
+            function gotoUrl(i, address) {
+
                 priv.gotoUrl(address, function(error, page) {
+                    var results = priv.getPageResult(page);
 
-                    if (isLast === true) {
-                        done();
+                    allResults[i].results = results;
+
+                    resultsCount++;
+
+                    if (resultsCount === resultsTarget) {
+                        afterFetched();
                     }
                 });
             }
 
+            function afterFetched() {
+                var simplified = _(allResults).map(function(result, index, list) {
+                    var out = {
+                        address: result.address,
+                        results: priv.simplifyResults(result.results)
+                    };
+
+                    return out;
+                });
+
+                var union = _.union.apply(_, _(simplified).pluck("results"));
+
+                var duplicates = union.filter(function(val, index, list) {
+                    return union.filter(function(inner, index, list) {
+                        return val.name === inner.name;
+                    }).length > 1;
+                });
+
+                var discovered = {};
+
+                var shared = duplicates.filter(function(val, index, list) {
+                    if (discovered[val.name] === undefined) {
+                        discovered[val.name] = 1;
+
+                        return true;
+                    }
+
+                    discovered[val.name]++;
+
+                    return false;
+                });
+
+                priv.printResults(shared);
+
+                done();
+            }
+
             // Copy variables to inner scope, since they are mutable
             // TODO: think of immutability? recursive function?
-            gotoUrl(i, isLast, address);
+            gotoUrl(i, address);
         }
+    };
+
+    priv.getPageResult = function(page) {
+        var results = {};
+
+        results.mergedGroups = page.evaluate(function() {
+            return JoelPurra.FormFieldInfo.getFields().removeEmptyNames().mergeArrays().groups().toArray();
+        });
+
+        return results;
+    };
+
+    priv.simplifyResults = function(results) {
+        var simplified = _(results.mergedGroups).map(function(value, index, list) {
+            var fieldGroup = _(value),
+                first = fieldGroup.first(),
+                simpler = {
+                    name: first.name,
+                    values: fieldGroup.pluck("value")
+                };
+
+            return simpler;
+        });
+
+        return simplified;
+    };
+
+    priv.printResults = function(simplifiedResults) {
+        _(simplifiedResults).each(function(simplifiedResult, index, list) {
+            console.log("\"" + simplifiedResult.name + "\"", simplifiedResult.values.map(function(value) {
+                return "\"" + value + "\""
+            }).toString());
+        });
     };
 
     priv.toArray = function(args) {
