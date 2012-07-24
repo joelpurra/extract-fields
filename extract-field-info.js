@@ -1,12 +1,21 @@
 ;
 
-// Until a fully functioning require(...) is implemented
-phantom.injectJs("lib/underscore-min.js");
-phantom.injectJs("lib/q.min.js");
+// Load dependencies
+{
+    // Hide cosole logging during libray loading
+    var noop = function() {},
+        originalConsoleLog = console.log;
+    console.log = noop;
+
+    // Until a fully functioning require(...) is implemented
+    phantom.injectJs("lib/underscore-min.js");
+    phantom.injectJs("lib/q.min.js");
+    console.log = originalConsoleLog;
+}
 
 (function(global, _) {
     var defaults = {
-        debugLevel: 0,
+        debugLevel: 4,
         scripts: ["lib/underscore-min.js", "lib/formfieldinfo.joelpurra.js"],
         timeout: 10000
     },
@@ -93,8 +102,7 @@ phantom.injectJs("lib/q.min.js");
 
             debug.log(tag, "shared.length", shared.length);
 
-            // TODO DEBUG
-            //priv.printResults(shared);
+            priv.printResults(shared);
         }
 
         for (i = 0; i < addresses.length; i++) {
