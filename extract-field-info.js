@@ -51,7 +51,7 @@
         function parseSimplifiedResults(combo) {
             debug.log(tag, "then", arguments, combo, combo.address, combo.result.length);
 
-            priv.printResults(combo.result);
+            priv.printSimplifiedResults(combo.result);
         }
 
         Q.when(qDef.getSimplifiedResults(address)).then(parseSimplifiedResults, priv.logError(tag, "fail")).fin(done);
@@ -102,7 +102,7 @@
 
             debug.log(tag, "shared.length", shared.length);
 
-            priv.printResults(shared);
+            priv.printSimplifiedResults(shared);
         }
 
         for (i = 0; i < addresses.length; i++) {
@@ -137,7 +137,7 @@
         return simplified;
     };
 
-    priv.printResults = function(simplifiedResults) {
+    priv.printSimplifiedResults = function(simplifiedResults) {
         _(simplifiedResults).each(function(simplifiedResult, index, list) {
             console.log("\"" + simplifiedResult.name + "\"", simplifiedResult.values.map(function(value) {
                 return "\"" + value + "\""
@@ -283,14 +283,27 @@
         return Q.timeout(gotoDeferred, timeout);
     };
 
-    qDef.getSimplifiedResults = function(address) {
-        var tag = "qDef.getSimplifiedResults";
+    qDef.getPageResult = function(address) {
+        var tag = "qDef.getPageResult";
 
         function parsePage(page) {
             debug.log(tag, "then", arguments, page);
 
-            var results = priv.getPageResult(page),
-                simplifiedResults = priv.simplifyResults(results);
+            var result = priv.getPageResult(page);
+
+            return result;
+        };
+
+        return Q.when(qDef.gotoUrl(address, options.timeout)).then(parsePage, priv.logError(tag, "fail"));
+    }
+
+    qDef.getSimplifiedResults = function(address) {
+        var tag = "qDef.getSimplifiedResults";
+
+        function simplify(result) {
+            debug.log(tag, "then", arguments, result);
+
+            var simplifiedResults = priv.simplifyResults(result);
 
             var combo = {
                 address: address,
@@ -300,7 +313,7 @@
             return combo;
         };
 
-        return Q.when(qDef.gotoUrl(address, options.timeout)).then(parsePage, priv.logError(tag, "fail"));
+        return Q.when(qDef.getPageResult(address)).then(simplify, priv.logError(tag, "fail"));
     }
 
     debug.init();
