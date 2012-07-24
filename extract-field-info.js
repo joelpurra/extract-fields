@@ -15,7 +15,7 @@
 
 (function(global, _) {
     var defaults = {
-        debugLevel: 4,
+        debugLevel: 0,
         scripts: ["lib/underscore-min.js", "lib/formfieldinfo.joelpurra.js"],
         timeout: 10000
     },
@@ -48,13 +48,13 @@
     modes.fields = function(done, address) {
         var tag = "mode.fields";
 
-        function parseSimplifiedResults(combo) {
-            debug.log(tag, "then", arguments, combo, combo.address, combo.result.length);
+        function parseSimplifiedFieldGroups(combo) {
+            debug.log(tag, "then", arguments, combo, combo.address, combo.fieldGroups.length);
 
-            priv.printSimplifiedResults(combo.result);
+            priv.printSimplifiedFieldGroups(combo.fieldGroups);
         }
 
-        Q.when(qDef.getSimplifiedResults(address)).then(parseSimplifiedResults, priv.logError(tag, "fail")).fin(done);
+        Q.when(qDef.getSimplifiedFieldGroups(address)).then(parseSimplifiedFieldGroups, priv.logError(tag, "fail")).fin(done);
     };
 
     modes.shared = function(done) {
@@ -62,68 +62,42 @@
             addresses = priv.toArray(arguments).slice(1),
             i, allRequests = [];
 
-        function afterFetched(allResults) {
-            var tag = "modes.shared.afterFetched"
-            _allResults = _(allResults);
+        function afterFetched(combos) {
+            var tag = "modes.shared.afterFetched",
+                _combos = _(combos);
 
-            debug.log(tag, allResults);
+            debug.log(tag, combos);
 
-            _allResults.each(function(combo, index, list) {
-                debug.log(tag, "allResults", index, "[i].address", combo.address, "[i].result.length", combo.result.length);
+            _combos.each(function(combo, index, list) {
+                debug.log(tag, "combos", index, "[i].address", combo.address, "[i].fieldGroups.length", combo.fieldGroups.length);
             })
 
-            var union = _.union.apply(_, _allResults.pluck("result"));
-
-            debug.log(tag, "union.length", union.length);
-
-            var duplicates = union.filter(function(val, index, list) {
-                var moreThanOne = union.filter(function(inner, index, list) {
-                    return val.name === inner.name;
-                }).length > 1;
-
-                return moreThanOne;
-            });
-
-            debug.log(tag, "duplicates.length", duplicates.length);
-
-            var discovered = {};
-
-            var shared = duplicates.filter(function(val, index, list) {
-                if (discovered[val.name] === undefined) {
-                    discovered[val.name] = 1;
-
-                    return true;
-                }
-
-                discovered[val.name]++;
-
-                return false;
-            });
+            var shared = priv.getUnion(combos);
 
             debug.log(tag, "shared.length", shared.length);
 
-            priv.printSimplifiedResults(shared);
+            priv.printSimplifiedFieldGroups(shared);
         }
 
         for (i = 0; i < addresses.length; i++) {
             // Copy variables to inner scope, since they are mutable
             // TODO: think of immutability? recursive function?
-            allRequests.push(qDef.getSimplifiedResults(addresses[i]));
+            allRequests.push(qDef.getSimplifiedFieldGroups(addresses[i]));
         }
 
         Q.all(allRequests).then(afterFetched, priv.logError(tag, "fail")).fin(done);
     };
 
-    priv.getPageResult = function(page) {
-        var results = page.evaluate(function() {
+    priv.getPageFieldGroups = function(page) {
+        var fieldGroups = page.evaluate(function() {
             return JoelPurra.FormFieldInfo.getFields().removeEmptyNames().mergeArrays().groups().toArray();
         });
 
-        return results;
+        return fieldGroups;
     };
 
-    priv.simplifyResults = function(results) {
-        var simplified = _(results).map(function(value, index, list) {
+    priv.simplifyFieldGroups = function(fieldGroups) {
+        var simplified = _(fieldGroups).map(function(value, index, list) {
             var fieldGroup = _(value),
                 first = fieldGroup.first(),
                 simpler = {
@@ -137,13 +111,50 @@
         return simplified;
     };
 
-    priv.printSimplifiedResults = function(simplifiedResults) {
-        _(simplifiedResults).each(function(simplifiedResult, index, list) {
-            console.log("\"" + simplifiedResult.name + "\"", simplifiedResult.values.map(function(value) {
+    priv.printSimplifiedFieldGroups = function(simplifiedFieldGroups) {
+        _(simplifiedFieldGroups).each(function(simplifiedFieldGroup, index, list) {
+            console.log("\"" + simplifiedFieldGroup.name + "\"", simplifiedFieldGroup.values.map(function(value) {
                 return "\"" + value + "\""
             }).toString());
         });
     };
+
+    priv.getUnion = function(combos) {
+        var tag = "priv.getUnion",
+            _combos = _(combos);
+
+        var union = _.union.apply(_, _combos.pluck("fieldGroups"));
+
+        debug.log(tag, "union.length", union.length);
+
+        var duplicates = union.filter(function(val, index, list) {
+            var moreThanOne = union.filter(function(inner, index, list) {
+                return val.name === inner.name;
+            }).length > 1;
+
+            return moreThanOne;
+        });
+
+        debug.log(tag, "duplicates.length", duplicates.length);
+
+        var discovered = {};
+
+        var shared = duplicates.filter(function(val, index, list) {
+            if (discovered[val.name] === undefined) {
+                discovered[val.name] = 1;
+
+                return true;
+            }
+
+            discovered[val.name]++;
+
+            return false;
+        });
+
+        debug.log(tag, "shared.length", shared.length);
+
+        return shared;
+    }
 
     priv.toArray = function(args) {
         return Array.prototype.slice.call(args, 0);
@@ -283,37 +294,37 @@
         return Q.timeout(gotoDeferred, timeout);
     };
 
-    qDef.getPageResult = function(address) {
-        var tag = "qDef.getPageResult";
+    qDef.getPageFieldGroups = function(address) {
+        var tag = "qDef.getPageFieldGroups";
 
         function parsePage(page) {
             debug.log(tag, "then", arguments, page);
 
-            var result = priv.getPageResult(page);
+            var fieldGroups = priv.getPageFieldGroups(page);
 
-            return result;
+            return fieldGroups;
         };
 
         return Q.when(qDef.gotoUrl(address, options.timeout)).then(parsePage, priv.logError(tag, "fail"));
     }
 
-    qDef.getSimplifiedResults = function(address) {
-        var tag = "qDef.getSimplifiedResults";
+    qDef.getSimplifiedFieldGroups = function(address) {
+        var tag = "qDef.getSimplifiedFieldGroups";
 
-        function simplify(result) {
-            debug.log(tag, "then", arguments, result);
+        function simplify(fieldGroups) {
+            debug.log(tag, "then", arguments, fieldGroups);
 
-            var simplifiedResults = priv.simplifyResults(result);
+            var simplifiedFieldGroups = priv.simplifyFieldGroups(fieldGroups);
 
             var combo = {
                 address: address,
-                result: simplifiedResults
+                fieldGroups: simplifiedFieldGroups
             }
 
             return combo;
         };
 
-        return Q.when(qDef.getPageResult(address)).then(simplify, priv.logError(tag, "fail"));
+        return Q.when(qDef.getPageFieldGroups(address)).then(simplify, priv.logError(tag, "fail"));
     }
 
     debug.init();
