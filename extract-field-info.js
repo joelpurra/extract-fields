@@ -2,19 +2,23 @@
 
 // Until a fully functioning require(...) is implemented
 phantom.injectJs("lib/underscore-min.js");
+phantom.injectJs("lib/q.min.js");
 
 (function(global, _) {
     var defaults = {
-        debugLevel: 4,
-        scripts: ["lib/underscore-min.js", "lib/formfieldinfo.joelpurra.js"]
+        debugLevel: 0,
+        scripts: ["lib/underscore-min.js", "lib/formfieldinfo.joelpurra.js"],
+        timeout: 10000
     },
         // TODO: use a deep clone function
         options = {
             debugLevel: defaults.debugLevel,
-            scripts: defaults.scripts.slice(0)
+            scripts: defaults.scripts.slice(0),
+            timeout: defaults.timeout
         },
         priv = {},
         modes = {},
+        qDef = {},
         debug = {
             level: 4,
             out: function(fn, lvl, args) {
@@ -33,93 +37,77 @@ phantom.injectJs("lib/underscore-min.js");
     };
 
     modes.fields = function(done, address) {
-        priv.gotoUrl(address, function(error, page) {
+        var tag = "mode.fields";
 
-            var results = priv.getPageResult(page),
-                simplifiedResults = priv.simplifyResults(results);
+        function parseSimplifiedResults(combo) {
+            debug.log(tag, "then", arguments, combo, combo.address, combo.result.length);
 
-            priv.printResults(simplifiedResults);
+            priv.printResults(combo.result);
+        }
 
-            done();
-        });
+        Q.when(qDef.getSimplifiedResults(address)).then(parseSimplifiedResults, priv.logError(tag, "fail")).fin(done);
     };
 
     modes.shared = function(done) {
-        var addresses = priv.toArray(arguments).slice(1),
-            address, i, allResults = [],
-            resultsCount = 0,
-            resultsTarget = addresses.length;
+        var tag = "modes.shared",
+            addresses = priv.toArray(arguments).slice(1),
+            i, allRequests = [];
 
-        for (i = 0; i < addresses.length; i++) {
-            address = addresses[i];
+        function afterFetched(allResults) {
+            var tag = "modes.shared.afterFetched"
+            _allResults = _(allResults);
 
-            allResults.push({
-                address: address,
-                results: []
+            debug.log(tag, allResults);
+
+            _allResults.each(function(combo, index, list) {
+                debug.log(tag, "allResults", index, "[i].address", combo.address, "[i].result.length", combo.result.length);
+            })
+
+            var union = _.union.apply(_, _allResults.pluck("result"));
+
+            debug.log(tag, "union.length", union.length);
+
+            var duplicates = union.filter(function(val, index, list) {
+                var moreThanOne = union.filter(function(inner, index, list) {
+                    return val.name === inner.name;
+                }).length > 1;
+
+                return moreThanOne;
             });
 
-            function gotoUrl(i, address) {
+            debug.log(tag, "duplicates.length", duplicates.length);
 
-                priv.gotoUrl(address, function(error, page) {
-                    var results = priv.getPageResult(page);
+            var discovered = {};
 
-                    allResults[i].results = results;
+            var shared = duplicates.filter(function(val, index, list) {
+                if (discovered[val.name] === undefined) {
+                    discovered[val.name] = 1;
 
-                    resultsCount++;
+                    return true;
+                }
 
-                    if (resultsCount === resultsTarget) {
-                        afterFetched();
-                    }
-                });
-            }
+                discovered[val.name]++;
 
-            function afterFetched() {
-                var simplified = _(allResults).map(function(result, index, list) {
-                    var out = {
-                        address: result.address,
-                        results: priv.simplifyResults(result.results)
-                    };
+                return false;
+            });
 
-                    return out;
-                });
+            debug.log(tag, "shared.length", shared.length);
 
-                var union = _.union.apply(_, _(simplified).pluck("results"));
+            // TODO DEBUG
+            //priv.printResults(shared);
+        }
 
-                var duplicates = union.filter(function(val, index, list) {
-                    return union.filter(function(inner, index, list) {
-                        return val.name === inner.name;
-                    }).length > 1;
-                });
-
-                var discovered = {};
-
-                var shared = duplicates.filter(function(val, index, list) {
-                    if (discovered[val.name] === undefined) {
-                        discovered[val.name] = 1;
-
-                        return true;
-                    }
-
-                    discovered[val.name]++;
-
-                    return false;
-                });
-
-                priv.printResults(shared);
-
-                done();
-            }
-
+        for (i = 0; i < addresses.length; i++) {
             // Copy variables to inner scope, since they are mutable
             // TODO: think of immutability? recursive function?
-            gotoUrl(i, address);
+            allRequests.push(qDef.getSimplifiedResults(addresses[i]));
         }
+
+        Q.all(allRequests).then(afterFetched, priv.logError(tag, "fail")).fin(done);
     };
 
     priv.getPageResult = function(page) {
-        var results = {};
-
-        results.mergedGroups = page.evaluate(function() {
+        var results = page.evaluate(function() {
             return JoelPurra.FormFieldInfo.getFields().removeEmptyNames().mergeArrays().groups().toArray();
         });
 
@@ -127,7 +115,7 @@ phantom.injectJs("lib/underscore-min.js");
     };
 
     priv.simplifyResults = function(results) {
-        var simplified = _(results.mergedGroups).map(function(value, index, list) {
+        var simplified = _(results).map(function(value, index, list) {
             var fieldGroup = _(value),
                 first = fieldGroup.first(),
                 simpler = {
@@ -178,7 +166,14 @@ phantom.injectJs("lib/underscore-min.js");
     };
 
     priv.gotoUrl = function(address, callback) {
-        var page = require("webpage").create();
+        var tag = "priv.gotoUrl",
+            page = require("webpage").create();
+
+        function release() {
+            debug.log(tag, "release", address, page);
+
+            page.release();
+        }
 
         page.open(address, function(status) {
             debug.log("page.open(...)", status, address);
@@ -211,16 +206,14 @@ phantom.injectJs("lib/underscore-min.js");
 
                     callback.call(null, null, page);
                 } else {
-                    callback.call(null, status, page);
+                    callback.call(null, status);
                 }
             } catch (e) {
-                debug.error("priv.gotoUrl", e);
+                debug.error(tag, "catch", e);
 
                 throw e;
             } finally {
-                debug.log("priv.gotoUrl", "finally releasing page", page);
-
-                page.release();
+                release();
             }
         });
     };
@@ -267,6 +260,40 @@ phantom.injectJs("lib/underscore-min.js");
             debug.log("priv.init", "finally done")
         }
     };
+
+    priv.logError = function() {
+        var knownArgs = priv.toArray(arguments);
+
+        return function() {
+            debug.error.apply(debug, knownArgs.concat(priv.toArray(arguments)));
+        }
+    }
+
+    qDef.gotoUrl = function(address, timeout) {
+        var gotoDeferred = Q.ncall(priv.gotoUrl, priv, address);
+
+        return Q.timeout(gotoDeferred, timeout);
+    };
+
+    qDef.getSimplifiedResults = function(address) {
+        var tag = "qDef.getSimplifiedResults";
+
+        function parsePage(page) {
+            debug.log(tag, "then", arguments, page);
+
+            var results = priv.getPageResult(page),
+                simplifiedResults = priv.simplifyResults(results);
+
+            var combo = {
+                address: address,
+                result: simplifiedResults
+            }
+
+            return combo;
+        };
+
+        return Q.when(qDef.gotoUrl(address, options.timeout)).then(parsePage, priv.logError(tag, "fail"));
+    }
 
     debug.init();
     priv.init();
