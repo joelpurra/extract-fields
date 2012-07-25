@@ -15,7 +15,7 @@
 
 (function(global, _) {
     var defaults = {
-        debugLevel: 0,
+        debugLevel: 4,
         scripts: ["lib/underscore-min.js", "lib/formfieldinfo.joelpurra.js"],
         timeout: 10000
     },
@@ -28,6 +28,7 @@
         priv = {},
         modes = {},
         qDef = {},
+        _generalMixins = {},
         debug = {
             level: 4,
             out: function(fn, lvl, args) {
@@ -57,8 +58,10 @@
         Q.when(qDef.getSimplifiedFieldGroups(address)).then(parseSimplifiedFieldGroups, priv.logError(tag, "fail")).fin(done);
     };
 
-    modes.shared = function(done) {
+    modes.shared = function(done, address1, address2, more) {
         var tag = "modes.shared",
+            // Replacing the dummy addresses
+            // Fix by improving the command line help/usage system
             addresses = priv.toArray(arguments).slice(1),
             i, allRequests = [];
 
@@ -66,27 +69,50 @@
             var tag = "modes.shared.afterFetched",
                 _combos = _(combos);
 
-            debug.log(tag, combos);
-
             _combos.each(function(combo, index, list) {
                 debug.log(tag, "combos", index, "[i].address", combo.address, "[i].fieldGroups.length", combo.fieldGroups.length);
             })
 
-            var shared = priv.getUnion(combos);
+            var shared = priv.getSimplifiedFieldGroupsIntersection(combos);
 
-            debug.log(tag, "shared.length", shared.length);
-
-            priv.printSimplifiedFieldGroups(shared);
+            // HACK: unwrap underscore object so it won't get wrapped twice
+            priv.printSimplifiedFieldGroups(shared.toArray());
         }
 
         for (i = 0; i < addresses.length; i++) {
-            // Copy variables to inner scope, since they are mutable
-            // TODO: think of immutability? recursive function?
             allRequests.push(qDef.getSimplifiedFieldGroups(addresses[i]));
         }
 
         Q.all(allRequests).then(afterFetched, priv.logError(tag, "fail")).fin(done);
     };
+
+    modes.help = function(done) {
+        // TODO: make debug level a command line argument
+        console.log("extract-field-info.js: extracts general form field info from HTML pages over HTTP.");
+        console.log("Usage: extract-field-info.js <mode> [arguments]");
+        console.log("  MODE \t\t ARGUMENTS");
+
+        for (key in modes) {
+            var mode = modes[key];
+
+            console.log("  " + key + " \t " + priv.getModeFunctionArguments(mode).join(" "));
+        }
+
+        done();
+    };
+
+    priv.getFunctionArguments = function(fn) {
+        var source = fn.toString(),
+            start = source.indexOf("("),
+            end = source.indexOf(")"),
+            args = source.substring(start + 1, end).split(",");
+
+        return args;
+    };
+
+    priv.getModeFunctionArguments = function(fn) {
+        return priv.getFunctionArguments(fn).slice(1);
+    }
 
     priv.getPageFieldGroups = function(page) {
         var fieldGroups = page.evaluate(function() {
@@ -112,6 +138,7 @@
     };
 
     priv.printSimplifiedFieldGroups = function(simplifiedFieldGroups) {
+
         _(simplifiedFieldGroups).each(function(simplifiedFieldGroup, index, list) {
             console.log("\"" + simplifiedFieldGroup.name + "\"", simplifiedFieldGroup.values.map(function(value) {
                 return "\"" + value + "\""
@@ -119,42 +146,13 @@
         });
     };
 
-    priv.getUnion = function(combos) {
-        var tag = "priv.getUnion",
-            _combos = _(combos);
+    priv.getSimplifiedFieldGroupsIntersection = function(combos) {
+        var tag = "priv.getSimplifiedFieldGroupsIntersection",
+            _combos = _(combos),
+            intersection = _combos.intersectionPropertyEq("name");
 
-        var union = _.union.apply(_, _combos.pluck("fieldGroups"));
-
-        debug.log(tag, "union.length", union.length);
-
-        var duplicates = union.filter(function(val, index, list) {
-            var moreThanOne = union.filter(function(inner, index, list) {
-                return val.name === inner.name;
-            }).length > 1;
-
-            return moreThanOne;
-        });
-
-        debug.log(tag, "duplicates.length", duplicates.length);
-
-        var discovered = {};
-
-        var shared = duplicates.filter(function(val, index, list) {
-            if (discovered[val.name] === undefined) {
-                discovered[val.name] = 1;
-
-                return true;
-            }
-
-            discovered[val.name]++;
-
-            return false;
-        });
-
-        debug.log(tag, "shared.length", shared.length);
-
-        return shared;
-    }
+        return intersection;
+    };
 
     priv.toArray = function(args) {
         return Array.prototype.slice.call(args, 0);
@@ -259,18 +257,15 @@
 
         try {
             if (commandLineArguments.length < 2) {
-                // TODO: make debug level a command line argument
-                console.log("Usage: extract-field-info.js <mode> [arguments]");
-
-                priv.done();
+                mode = "help";
             } else {
                 mode = commandLineArguments[1];
-                args = commandLineArguments.slice(2);
-                args.unshift(priv.done);
-
-                modes[mode].apply(null, args);
             }
 
+            args = commandLineArguments.slice(2);
+            args.unshift(priv.done);
+
+            modes[mode].apply(null, args);
         } catch (e) {
             debug.error("priv.init", "General error", e);
 
@@ -286,7 +281,7 @@
         return function() {
             debug.error.apply(debug, knownArgs.concat(priv.toArray(arguments)));
         }
-    }
+    };
 
     qDef.gotoUrl = function(address, timeout) {
         var gotoDeferred = Q.ncall(priv.gotoUrl, priv, address);
@@ -306,7 +301,7 @@
         };
 
         return Q.when(qDef.gotoUrl(address, options.timeout)).then(parsePage, priv.logError(tag, "fail"));
-    }
+    };
 
     qDef.getSimplifiedFieldGroups = function(address) {
         var tag = "qDef.getSimplifiedFieldGroups";
@@ -325,7 +320,56 @@
         };
 
         return Q.when(qDef.getPageFieldGroups(address)).then(simplify, priv.logError(tag, "fail"));
-    }
+    };
+
+    _generalMixins.filterPropertyEq = function(list, propertyName, value) {
+        var filtered = _(list).filter(function(inner, index, list) {
+            return inner[propertyName] === value;
+        });
+
+        return _(filtered);
+    };
+
+    _generalMixins.intersectionPropertyEq = function(lists, propertyName) {
+        var tag = "_.intersectionPropertyEq",
+            _lists = _(lists);
+
+        var union = _.union.apply(_, _lists.pluck("fieldGroups"));
+        union = _(union);
+
+        debug.log(tag, "union.size()", union.size());
+
+        var duplicates = union.filter(function(val, index, list) {
+            var moreThanOne = union.filterPropertyEq(propertyName, val[propertyName]).size() > 1;
+
+            return moreThanOne;
+        });
+        duplicates = _(duplicates);
+
+        debug.log(tag, "duplicates.size()", duplicates.size());
+
+        var discovered = {};
+
+        var intersection = duplicates.filter(function(val, index, list) {
+            if (discovered[val[propertyName]] === undefined) {
+                discovered[val[propertyName]] = 1;
+
+                return true;
+            }
+
+            discovered[val[propertyName]]++;
+
+            return false;
+        });
+        intersection = _(intersection);
+
+        debug.log(tag, "intersection.size()", intersection.size());
+
+        return intersection;
+    };
+
+    // TODO: create a copy of underscore and add mixins locally only?
+    _.mixin(_generalMixins);
 
     debug.init();
     priv.init();
