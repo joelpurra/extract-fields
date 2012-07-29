@@ -49,13 +49,13 @@
     modes.fields = function(done, address) {
         var tag = "mode.fields";
 
-        function parseSimplifiedFieldGroups(combo) {
-            debug.log(tag, "then", arguments, combo, combo.address, combo.fieldGroups.length);
+        function parseFieldSummaries(fieldSummaries) {
+            debug.log(tag, "then", arguments, address, fieldSummaries, fieldSummaries.length);
 
-            priv.printSimplifiedFieldGroups(combo.fieldGroups);
+            priv.printFieldSummaries(fieldSummaries);
         }
 
-        Q.when(qDef.getSimplifiedFieldGroups(address)).then(parseSimplifiedFieldGroups, priv.logError(tag, "fail")).fin(done);
+        Q.when(qDef.getFieldSummaries(address)).then(parseFieldSummaries, priv.logError(tag, "fail")).fin(done);
     };
 
     modes.shared = function(done, address1, address2, more) {
@@ -65,22 +65,22 @@
             addresses = priv.toArray(arguments).slice(1),
             i, allRequests = [];
 
-        function afterFetched(combos) {
+        function afterFetched(fieldSummariesArray) {
             var tag = "modes.shared.afterFetched",
-                _combos = _(combos);
+                _fieldSummariesArray = _(fieldSummariesArray);
 
-            _combos.each(function(combo, index, list) {
-                debug.log(tag, "combos", index, "[i].address", combo.address, "[i].fieldGroups.length", combo.fieldGroups.length);
-            })
+            _fieldSummariesArray.each(function(fieldSummaries, index, list) {
+                debug.log(tag, "fieldSummaries", index, "[i].length", fieldSummaries.length);
+            });
 
-            var shared = priv.getSimplifiedFieldGroupsIntersection(combos);
+            var shared = priv.getFieldSummariesIntersection(fieldSummariesArray);
 
             // HACK: unwrap underscore object so it won't get wrapped twice
-            priv.printSimplifiedFieldGroups(shared.toArray());
+            priv.printFieldSummaries(shared.toArray());
         }
 
         for (i = 0; i < addresses.length; i++) {
-            allRequests.push(qDef.getSimplifiedFieldGroups(addresses[i]));
+            allRequests.push(qDef.getFieldSummaries(addresses[i]));
         }
 
         Q.all(allRequests).then(afterFetched, priv.logError(tag, "fail")).fin(done);
@@ -122,34 +122,27 @@
         return fieldGroups;
     };
 
-    priv.simplifyFieldGroups = function(fieldGroups) {
-        var simplified = _(fieldGroups).map(function(value, index, list) {
-            var fieldGroup = _(value),
-                first = fieldGroup.first(),
-                simpler = {
-                    name: first.name,
-                    values: fieldGroup.pluck("value")
-                };
-
-            return simpler;
+    priv.getPageFieldSummaries = function(page) {
+        var fieldSummaries = page.evaluate(function() {
+            return JoelPurra.FormFieldInfo.getFields().removeEmptyNames().mergeArrays().groups().nameValues().toArray();
         });
 
-        return simplified;
+        return fieldSummaries;
     };
 
-    priv.printSimplifiedFieldGroups = function(simplifiedFieldGroups) {
+    priv.printFieldSummaries = function(fieldSummaries) {
 
-        _(simplifiedFieldGroups).each(function(simplifiedFieldGroup, index, list) {
-            console.log("\"" + simplifiedFieldGroup.name + "\"", simplifiedFieldGroup.values.map(function(value) {
+        _(fieldSummaries).each(function(fieldSummary, index, list) {
+            console.log("\"" + fieldSummary.name + "\"", fieldSummary.values.map(function(value) {
                 return "\"" + value + "\""
             }).toString());
         });
     };
 
-    priv.getSimplifiedFieldGroupsIntersection = function(combos) {
-        var tag = "priv.getSimplifiedFieldGroupsIntersection",
-            _combos = _(combos),
-            intersection = _combos.intersectionPropertyEq("name");
+    priv.getFieldSummariesIntersection = function(fieldSummariesArray) {
+        var tag = "priv.getFieldSummariesIntersection",
+            _fieldSummariesArray = _(fieldSummariesArray),
+            intersection = _fieldSummariesArray.intersectionPropertyEq("name");
 
         return intersection;
     };
@@ -303,23 +296,18 @@
         return Q.when(qDef.gotoUrl(address, options.timeout)).then(parsePage, priv.logError(tag, "fail"));
     };
 
-    qDef.getSimplifiedFieldGroups = function(address) {
-        var tag = "qDef.getSimplifiedFieldGroups";
+    qDef.getFieldSummaries = function(address) {
+        var tag = "qDef.getFieldSummaries";
 
-        function simplify(fieldGroups) {
-            debug.log(tag, "then", arguments, fieldGroups);
+        function parsePage(page) {
+            debug.log(tag, "then", arguments, page);
 
-            var simplifiedFieldGroups = priv.simplifyFieldGroups(fieldGroups);
+            var fieldSummaries = priv.getPageFieldSummaries(page);
 
-            var combo = {
-                address: address,
-                fieldGroups: simplifiedFieldGroups
-            }
-
-            return combo;
+            return fieldSummaries;
         };
 
-        return Q.when(qDef.getPageFieldGroups(address)).then(simplify, priv.logError(tag, "fail"));
+        return Q.when(qDef.gotoUrl(address, options.timeout)).then(parsePage, priv.logError(tag, "fail"));
     };
 
     _generalMixins.filterPropertyEq = function(list, propertyName, value) {
@@ -334,7 +322,7 @@
         var tag = "_.intersectionPropertyEq",
             _lists = _(lists);
 
-        var union = _.union.apply(_, _lists.pluck("fieldGroups"));
+        var union = _.union.apply(_, _lists.toArray());
         union = _(union);
 
         debug.log(tag, "union.size()", union.size());
