@@ -63,14 +63,15 @@
 
     modes.help = function(done) {
         // TODO: make debug level a command line argument
-        console.log("extract-field-info.js: extracts general form field info from HTML pages over HTTP.");
-        console.log("Usage: extract-field-info.js <mode> [arguments]");
-        console.log("  MODE \t\t ARGUMENTS");
+        console.log("# extract-field-info.js: extracts general form field info from HTML pages over HTTP.");
+        console.log("# Usage: extract-field-info.js <mode> [arguments]");
+        console.log("#   MODE \t\t ARGUMENTS");
+        console.log("#   ---- \t\t ---------");
 
         Object.keys(modes).forEach(function(key) {
             var mode = modes[key];
 
-            console.log("  " + key + " \t " + priv.getModeFunctionArguments(mode).join(" "));
+            console.log("#   " + key + " \t\t " + priv.getModeFunctionArguments(mode).join(" "));
         });
 
         done();
