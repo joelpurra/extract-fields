@@ -23,15 +23,28 @@ $ phantomjs extract-field-info.js
 
 ## Examples
 
+The final `2>/dev/null` is just there to hide some phantomjs error output about font performance.
+
+
 ### Command line
 
-Extract the field information for [google.com](http://google.com/).
+Extract the field names/values for [google.com](https://google.com/).
 
 ```bash
-$ phantomjs src/extract-field-info.js fields "http://google.com/" 2>/dev/null
+$ phantomjs src/extract-field-info.js fields "https://google.com/" 2>/dev/null
 ```
 
-The final `2>/dev/null` is just there to hide some phantomjs error output about font performance.
+Extract the field names/values for [github.com](https://github.com/).
+
+```bash
+$ phantomjs src/extract-field-info.js fields "https://github.com/" 2>/dev/null
+```
+
+While it doesn't make much sense, let's extract the *shared* field names/values for [google.com](https://google.com/) and [github.com](https://github.com/).
+
+```bash
+$ phantomjs src/extract-field-info.js shared "https://google.com/" "https://github.com/" 2>/dev/null
+```
 
 
 ### `extract-field-info.sh`
