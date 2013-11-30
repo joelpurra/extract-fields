@@ -16,7 +16,7 @@
 (function(global, _) {
     var defaults = {
         debugLevel: 4,
-        scripts: ["lib/underscore-min.js", "lib/formfieldinfo.joelpurra.js"],
+        scripts: ["lib/jquery-2.0.3.min.js", "lib/underscore-min.js", "lib/formfieldinfo.joelpurra.js"],
         timeout: 10000
     },
         // TODO: use a deep clone function
@@ -200,13 +200,13 @@
                         debug.log("Page title is " + title);
                     }
 
+                    var scriptsSuccess = priv.injectJss(page, options.scripts);
+
                     var jQueryVersion = page.evaluate(function() {
-                        return jQuery.fn.jquery;
+                        return window.jQuery.fn.jquery;
                     });
 
                     debug.log("jQuery version", jQueryVersion);
-
-                    var scriptsSuccess = priv.injectJss(page, options.scripts);
 
                     var underscoreVersion = page.evaluate(function() {
                         return _.VERSION;
