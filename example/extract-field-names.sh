@@ -1,10 +1,20 @@
 #!/bin/bash
+set -e
+
+# This script doesn't use the phantomjs script - it's a predecessor, extracting only HTML form field names.
+
+# Usage
+#
+# $ ./extract-field-names.sh
+#
 
 forms=( "html/my-first-form.html" "html/another-form.html" )
 
 cd $(dirname "${0}")
 
-mkdir -p output/
+outdir=output/`dirname ${forms[0]}`
+
+mkdir -p $outdir
 
 for form in "${forms[@]}"
 do
@@ -12,7 +22,7 @@ do
 	sed -n 's/.*name="\([^"]*\)".*/\1/p' $form | perl -ne '$H{$_}++ or print' | egrep -v 'description|viewport' > "output/$form.field-names.txt"
 done
 
-cat `find . -name '*.field-names.txt' -print` | perl -ne '0==$H{$_}-- or print' > output/`dirname ${forms[0]}`/shared-field-names.txt
+cat `find . -name '*.field-names.txt' -print` | perl -ne '0==$H{$_}-- or print' > $outdir/shared-field-names.txt
 
 # Optional
 # Prepend the file with YAML front matter, to have
