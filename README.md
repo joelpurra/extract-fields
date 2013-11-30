@@ -68,6 +68,11 @@ Look in `example/output/html/` for the result.
 
 
 
+## See also
+
+- [FormFieldInfo](https://github.com/joelpurra/formfieldinfo), a javascript plugin used to collect information about forms in a page, which is used by the phantomjs script.
+
+
 ## License
 
 Copyright (c) 2012, 2013, [Joel Purra](http://joelpurra.com/) All rights reserved.
