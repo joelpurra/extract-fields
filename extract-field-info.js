@@ -1,19 +1,34 @@
 ;
 
 // Load dependencies
-{
-    // Hide cosole logging during libray loading
+(function() {
+    "use strict";
     var noop = function() {},
-        originalConsoleLog = console.log;
+
+        originalConsoleLog = console.log,
+
+        injectOrFail = function(path) {
+            var result = phantom.injectJs(path);
+
+            if (result !== true) {
+                throw new Error("Could not inject " + path);
+            }
+        }
+
+        // Hide console logging during libary loading
     console.log = noop;
 
     // Until a fully functioning require(...) is implemented
-    phantom.injectJs("lib/underscore-min.js");
-    phantom.injectJs("lib/q.min.js");
+    injectOrFail("lib/underscore-min.js");
+    injectOrFail("lib/q.min.js");
+
+    // Restore console logging
     console.log = originalConsoleLog;
-}
+}());
 
 (function(global, _) {
+    "use strict";
+
     var defaults = {
         debugLevel: 4,
         scripts: ["lib/jquery-2.0.3.min.js", "lib/underscore-min.js", "lib/formfieldinfo.joelpurra.js"],
