@@ -20,8 +20,8 @@ outdir=example/output
 
 mkdir -p $outdir
 
-phantomjs "$extractjs" fields "$siteRoot/my-first-form.html" > $outdir/my-first-form.txt
-phantomjs "$extractjs" fields "$siteRoot/another-form.html" > $outdir/another-form.txt
-phantomjs "$extractjs" shared "$siteRoot/my-first-form.html" "$siteRoot/another-form.html" > $outdir/shared.txt
+phantomjs "$extractjs" fields "$siteRoot/my-first-form.html" > $outdir/my-first-form.txt 2>/dev/null
+phantomjs "$extractjs" fields "$siteRoot/another-form.html" > $outdir/another-form.txt 2>/dev/null
+phantomjs "$extractjs" shared "$siteRoot/my-first-form.html" "$siteRoot/another-form.html" > $outdir/shared.txt 2>/dev/null
 
 cd - > /dev/null
