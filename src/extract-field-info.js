@@ -1,5 +1,9 @@
 ;
 
+function fileInLibrary(name) {
+    return "../lib/" + name;
+}
+
 // Load dependencies
 (function() {
     "use strict";
@@ -19,8 +23,8 @@
     console.log = noop;
 
     // Until a fully functioning require(...) is implemented
-    injectOrFail("lib/underscore-min.js");
-    injectOrFail("lib/q.min.js");
+    injectOrFail(fileInLibrary("underscore-min.js"));
+    injectOrFail(fileInLibrary("q.min.js"));
 
     // Restore console logging
     console.log = originalConsoleLog;
@@ -31,7 +35,7 @@
 
     var defaults = {
         debugLevel: 4,
-        scripts: ["lib/jquery-2.0.3.min.js", "lib/underscore-min.js", "lib/formfieldinfo.joelpurra.js"],
+        scripts: [fileInLibrary("jquery-2.0.3.min.js"), fileInLibrary("underscore-min.js"), fileInLibrary("formfieldinfo.joelpurra.js")],
         timeout: 10000
     },
         // TODO: use a deep clone function
