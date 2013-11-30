@@ -61,6 +61,21 @@
         }, debug);
     };
 
+    modes.help = function(done) {
+        // TODO: make debug level a command line argument
+        console.log("extract-field-info.js: extracts general form field info from HTML pages over HTTP.");
+        console.log("Usage: extract-field-info.js <mode> [arguments]");
+        console.log("  MODE \t\t ARGUMENTS");
+
+        Object.keys(modes).forEach(function(key) {
+            var mode = modes[key];
+
+            console.log("  " + key + " \t " + priv.getModeFunctionArguments(mode).join(" "));
+        });
+
+        done();
+    };
+
     modes.fields = function(done, address) {
         var tag = "mode.fields";
 
@@ -99,21 +114,6 @@
         }
 
         Q.all(allRequests).then(afterFetched, priv.logError(tag, "fail")).fin(done);
-    };
-
-    modes.help = function(done) {
-        // TODO: make debug level a command line argument
-        console.log("extract-field-info.js: extracts general form field info from HTML pages over HTTP.");
-        console.log("Usage: extract-field-info.js <mode> [arguments]");
-        console.log("  MODE \t\t ARGUMENTS");
-
-        for (key in modes) {
-            var mode = modes[key];
-
-            console.log("  " + key + " \t " + priv.getModeFunctionArguments(mode).join(" "));
-        }
-
-        done();
     };
 
     priv.getFunctionArguments = function(fn) {
