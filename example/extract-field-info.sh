@@ -3,12 +3,12 @@ set -e
 
 # This script assumes you're running a webserver, that phantomjs can connect to and perform its magic.
 
-# Usage
-#
-# $ ./extract-field-info.sh "http://localhost/path/to/html/subfolder"
-#
-# Note: no trailing slash in the site root URL.
-#
+if [ -z "$1" ]
+then
+	echo Usage: `basename $0` "http://localhost/path/to/html/subfolder"
+	echo Note: Note: no trailing slash in the site root URL.
+	exit 1
+fi
 
 siteRoot=$1
 
