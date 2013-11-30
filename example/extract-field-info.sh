@@ -1,11 +1,27 @@
+#!/bin/bash
+set -e
+
+# This script assumes you're running a webserver, that phantomjs can connect to and perform its magic.
+
+# Usage
+#
+# $ ./extract-field-info.sh "http://localhost/path/to/html/subfolder"
+#
+# Note: no trailing slash in the site root URL.
+#
+
 siteRoot=$1
 
-cd $(dirname "${0}")
+extractjs="src/extract-field-info.js"
 
-mkdir -p output/
+cd $(dirname "${0}")/../
 
-phantomjs extract-field-info.js fields "$siteRoot/my-first-form.html" > output/my-first-form.txt
-phantomjs extract-field-info.js fields "$siteRoot/another-form.html" > output/another-form.txt
-phantomjs extract-field-info.js shared "$siteRoot/my-first-form.html" "$siteRoot/another-form.html" > output/shared.txt
+outdir=example/output
+
+mkdir -p $outdir
+
+phantomjs "$extractjs" fields "$siteRoot/my-first-form.html" > $outdir/my-first-form.txt
+phantomjs "$extractjs" fields "$siteRoot/another-form.html" > $outdir/another-form.txt
+phantomjs "$extractjs" shared "$siteRoot/my-first-form.html" "$siteRoot/another-form.html" > $outdir/shared.txt
 
 cd - > /dev/null
