@@ -6,7 +6,7 @@ Scripts to extract HTML form field information from one or several webpages.
 
 ## Usage
 
-Make sure you have installed [phantomjs](http://phantomjs.org/) first.
+Make sure you have installed [phantomjs](https://phantomjs.org/) first.
 
 ```bash
 $ phantomjs extract-field-info.js
@@ -51,7 +51,7 @@ $ phantomjs src/extract-field-info.js shared "https://google.com/" "https://gith
 
 Reads the files in the `examples/html/` folder.
 
-In one terminal, start [jekyll](http://jekyllrb.com/) as a webserver.
+In one terminal, start [jekyll](https://jekyllrb.com/) as a webserver.
 
 ```bash
 $ cd example/html/
@@ -88,6 +88,6 @@ Look in `example/output/html/` for the result.
 
 ## License
 
-Copyright (c) 2012, 2013, 2014, 2015, [Joel Purra](http://joelpurra.com/) All rights reserved.
+Copyright (c) 2012, 2013, 2014, 2015, [Joel Purra](https://joelpurra.com/) All rights reserved.
 
-When using extract-fields, comply to the [MIT license](http://joelpurra.mit-license.org/2012-2013). Please see the LICENSE file for details, and the [MIT License on Wikipedia](http://en.wikipedia.org/wiki/MIT_License).
+When using extract-fields, comply to the [MIT license](https://joelpurra.mit-license.org/2012-2013). Please see the LICENSE file for details, and the [MIT License on Wikipedia](https://en.wikipedia.org/wiki/MIT_License).

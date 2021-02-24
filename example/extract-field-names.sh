@@ -28,9 +28,9 @@ cat `find . -name '*.field-names.txt' -print` | perl -ne '0==$H{$_}-- or print' 
 # Prepend the file with YAML front matter, to have
 # Jekyll regenerate the _site/ output for us.
 # From
-# 	http://stackoverflow.com/questions/54365/prepend-to-a-file-one-liner-shell
-# 	http://stackoverflow.com/a/3272296/
-# 	http://stackoverflow.com/a/5297363/
+# 	https://stackoverflow.com/questions/54365/prepend-to-a-file-one-liner-shell
+# 	https://stackoverflow.com/a/3272296/
+# 	https://stackoverflow.com/a/5297363/
 # TODO: build new array
 #for form in "field-names-${forms[0]}" "field-names-${forms[1]}" "shared-field-names"
 #do
